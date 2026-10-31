@@ -368,9 +368,15 @@ final class BarsChartView: NSView {
             NSBezierPath(roundedRect: r, xRadius: radius, yRadius: radius).fill()
         }
 
+        // axis labels need real contrast on both dark and light menu bar themes
+        let axisColor = NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return isDark ? NSColor(calibratedWhite: 0.97, alpha: 0.92)
+                          : NSColor(calibratedWhite: 0.12, alpha: 0.88)
+        }
         let attrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 8, weight: .medium),
-            .foregroundColor: NSColor.tertiaryLabelColor,
+            .font: NSFont.systemFont(ofSize: 9, weight: .semibold),
+            .foregroundColor: axisColor,
         ]
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
