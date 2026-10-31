@@ -8,7 +8,7 @@ A tiny native macOS menu bar app that shows your **Grok weekly credit** and **De
 
 Click the icon for a compact panel: Grok weekly usage with a reset countdown and per-product split (Grok Build / Grok Chat), DeepSeek balance with today's spend, and an animated spend chart that toggles between the last 7 days and the current day's hours.
 
-![panel](docs/panel.png)
+![AIQuota panel](docs/hero.png)
 
 ## Features
 

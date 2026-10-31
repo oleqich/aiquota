@@ -152,7 +152,7 @@ func alphaBBox(_ cg: CGImage) -> CGRect? {
 var iconCache: [String: NSImage] = [:]
 
 func menuIcon(_ name: String, _ color: NSColor, side: CGFloat = 256) -> NSImage? {
-    let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    let dark = NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     let key = name + (dark ? "-dark" : "-light")
     if let cached = iconCache[key] { return cached }
     guard let url = Bundle.main.url(forResource: name, withExtension: "svg"),
@@ -254,7 +254,8 @@ final class BarView: NSView {
         let r = bounds
         NSColor.quaternaryLabelColor.setFill()
         NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2).fill()
-        let w = max(0, min(1, fraction)) * r.width
+        var w = max(0, min(1, fraction)) * r.width
+        if fraction > 0.001 { w = max(w, 3) }
         if w > 1 {
             barColor.setFill()
             NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: w, height: r.height),
@@ -419,8 +420,10 @@ final class PanelController: NSViewController {
     let dsTitle   = NSTextField(labelWithString: "DeepSeek")
     let dsValue   = NSTextField(labelWithString: "")
     let dsToday   = NSTextField(labelWithString: "")
+    let dsWeek    = NSTextField(labelWithString: "")
     let spark     = BarsChartView()
     var chartMode: BarsChartView.Mode = .week
+    var highContrast = false
     let footer    = NSTextField(labelWithString: "")
     var onRefresh: (() -> Void)?
     var onKeys: (() -> Void)?
@@ -461,7 +464,7 @@ final class PanelController: NSViewController {
         grokBar.frame = NSRect(x: M, y: 238, width: CW, height: 6)
         grokBar.barColor = .systemGreen
 
-        grokReset.font = NSFont.systemFont(ofSize: 10)
+        grokReset.font = NSFont.systemFont(ofSize: 11)
         grokReset.textColor = .tertiaryLabelColor
         grokReset.alignment = .left
         grokReset.frame = NSRect(x: M, y: 222, width: CW, height: 12)
@@ -476,9 +479,9 @@ final class PanelController: NSViewController {
             p.alignment = .right
             p.frame = NSRect(x: W - M - 60, y: y, width: 60, height: 13)
         }
-        buildBar.frame = NSRect(x: M + 120, y: 203, width: 112, height: 4)
+        buildBar.frame = NSRect(x: M + 120, y: 202, width: 112, height: 6)
         buildBar.barColor = .systemTeal
-        chatBar.frame = NSRect(x: M + 120, y: 185, width: 112, height: 4)
+        chatBar.frame = NSRect(x: M + 120, y: 184, width: 112, height: 6)
         chatBar.barColor = .systemTeal
 
         let sep = NSBox(frame: NSRect(x: M, y: 168, width: CW, height: 1))
@@ -497,7 +500,12 @@ final class PanelController: NSViewController {
         dsToday.font = mono(10)
         dsToday.textColor = .secondaryLabelColor
         dsToday.alignment = .right
-        dsToday.frame = NSRect(x: M + 100, y: 70, width: CW - 100, height: 12)
+        dsToday.frame = NSRect(x: M + 100, y: 96, width: CW - 100, height: 12)
+
+        dsWeek.font = mono(10)
+        dsWeek.textColor = .secondaryLabelColor
+        dsWeek.alignment = .right
+        dsWeek.frame = NSRect(x: M + 100, y: 80, width: CW - 100, height: 12)
 
         spark.frame = NSRect(x: M, y: 86, width: 160, height: 56)
         spark.onToggle = { [weak self] in
@@ -510,7 +518,7 @@ final class PanelController: NSViewController {
         let sep2 = NSBox(frame: NSRect(x: M, y: 52, width: CW, height: 1))
         sep2.boxType = .separator
 
-        footer.font = NSFont.systemFont(ofSize: 10)
+        footer.font = NSFont.systemFont(ofSize: 11)
         footer.textColor = .tertiaryLabelColor
         footer.frame = NSRect(x: M, y: 18, width: 150, height: 12)
 
@@ -533,7 +541,7 @@ final class PanelController: NSViewController {
         quitBtn.frame = NSRect(x: 292, y: 12, width: 36, height: 22)
 
         for v: NSView in [grokTitle, grokValue, grokBar, grokReset, buildName, buildPct, buildBar,
-                          chatName, chatPct, chatBar, sep, dsTitle, dsValue, dsToday, spark,
+                          chatName, chatPct, chatBar, sep, dsTitle, dsValue, dsToday, dsWeek, spark,
                           sep2, footer, refreshBtn, keysBtn, quitBtn] {
             root.addSubview(v)
         }
@@ -546,6 +554,17 @@ final class PanelController: NSViewController {
 
     func update(grok: GrokInfo?, ds: DSInfo?, grokErr: String?, dsErr: String?,
                 updated: Date?, samples: [Sample]) {
+        let headColor = highContrast ? NSColor(calibratedWhite: 0.16, alpha: 1) : NSColor.secondaryLabelColor
+        let metaColor = highContrast ? NSColor(calibratedWhite: 0.26, alpha: 1) : NSColor.secondaryLabelColor
+        let faintColor = highContrast ? NSColor(calibratedWhite: 0.38, alpha: 1) : NSColor.tertiaryLabelColor
+        grokTitle.textColor = headColor
+        dsTitle.textColor = headColor
+        buildName.textColor = metaColor
+        chatName.textColor = metaColor
+        dsToday.textColor = metaColor
+        dsWeek.textColor = faintColor
+        grokReset.textColor = faintColor
+        footer.textColor = faintColor
         if let g = grok {
             grokValue.stringValue = String(format: "%.0f%%", g.percent)
             grokBar.fraction = CGFloat(min(g.percent, 100) / 100)
@@ -589,9 +608,12 @@ final class PanelController: NSViewController {
                 }
             }
             dsToday.stringValue = label
+            let weekTotal = b.week.reduce(0, +)
+            dsWeek.stringValue = weekTotal > 0.0004 ? String(format: "7 d  −$%.2f", weekTotal) : "7 d  $0.00"
         } else {
             dsValue.stringValue = "—"
             dsToday.stringValue = dsErr ?? "unavailable"
+            dsWeek.stringValue = ""
             spark.setData(week: Array(repeating: 0, count: 7), day: Array(repeating: 0, count: 24))
         }
 
@@ -1044,6 +1066,168 @@ if CommandLine.arguments.contains("--panel-shot") {
             print("wrote", out, v.bounds)
             exit(0)
         }
+    }
+    print("render failed")
+    exit(1)
+}
+
+// MARK: - marketing screenshot
+
+func demoPanelImage(light: Bool = true) -> NSImage {
+    let panel = PanelController()
+    _ = panel.view
+    let appearance = NSAppearance(named: light ? .aqua : .darkAqua)
+    panel.view.appearance = appearance
+    for sub in panel.view.subviews { sub.appearance = appearance }
+
+    let cal = Calendar.current
+    let now = Date()
+    var samples: [Sample] = []
+    var balance = 14.80
+    for dayAgo in stride(from: 7, through: 0, by: -1) {
+        for slot in 0..<24 {
+            guard let d = cal.date(byAdding: .hour, value: -dayAgo * 24 + slot, to: now), d <= now else { continue }
+            let hour = cal.component(.hour, from: d)
+            if hour >= 9 && hour <= 23 { balance -= Double.random(in: 0.01...0.12) }
+            samples.append(Sample(t: Int(d.timeIntervalSince1970), g: nil, d: max(1.2, balance)))
+        }
+    }
+
+    var g = GrokInfo()
+    g.percent = 62
+    g.end = cal.date(byAdding: .day, value: 3, to: now)
+    g.products = [("GrokBuild", 58), ("GrokChat", 4)]
+
+    var d = DSInfo()
+    d.usd = balance
+    d.available = true
+
+    panel.highContrast = true
+    panel.update(grok: g, ds: d, grokErr: nil, dsErr: nil, updated: now, samples: samples)
+    panel.view.layoutSubtreeIfNeeded()
+
+    let size = panel.view.bounds.size
+    let img = NSImage(size: size)
+    img.lockFocus()
+    let card = light ? NSColor(srgbRed: 0.976, green: 0.976, blue: 0.984, alpha: 1)
+                     : NSColor(srgbRed: 0.125, green: 0.125, blue: 0.135, alpha: 1)
+    card.setFill()
+    NSRect(origin: .zero, size: size).fill()
+    if let appearance = appearance {
+        appearance.performAsCurrentDrawingAppearance {
+            if let rep = panel.view.bitmapImageRepForCachingDisplay(in: panel.view.bounds) {
+                panel.view.cacheDisplay(in: panel.view.bounds, to: rep)
+                rep.draw(in: NSRect(origin: .zero, size: size))
+            }
+        }
+    }
+    img.unlockFocus()
+    return img
+}
+
+if CommandLine.arguments.contains("--marketing-shot") {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.prohibited)
+    app.appearance = NSAppearance(named: .darkAqua)
+
+    let W: CGFloat = 372, H: CGFloat = 358
+    let canvas = NSImage(size: NSSize(width: W, height: H))
+    canvas.lockFocus()
+
+    let bg = NSGradient(colors: [
+        NSColor(srgbRed: 0.055, green: 0.060, blue: 0.090, alpha: 1),
+        NSColor(srgbRed: 0.105, green: 0.085, blue: 0.145, alpha: 1),
+        NSColor(srgbRed: 0.045, green: 0.055, blue: 0.080, alpha: 1),
+    ])!
+    bg.draw(in: NSRect(x: 0, y: 0, width: W, height: H), angle: -55)
+
+    let glow = NSGradient(colors: [
+        NSColor(srgbRed: 0.30, green: 0.42, blue: 0.99, alpha: 0.20),
+        NSColor(srgbRed: 0.30, green: 0.42, blue: 0.99, alpha: 0.0),
+    ])!
+    glow.draw(in: NSRect(x: W * 0.15, y: H * 0.30, width: W * 1.1, height: H * 1.1),
+              relativeCenterPosition: .zero)
+
+    // menu bar strip
+    let barH: CGFloat = 30
+    NSColor(calibratedWhite: 1.0, alpha: 0.07).setFill()
+    NSRect(x: 0, y: H - barH, width: W, height: barH).fill()
+    NSColor(calibratedWhite: 0.0, alpha: 0.35).setFill()
+    NSRect(x: 0, y: H - barH, width: W, height: 1).fill()
+
+    // our item, to the left of the clock
+    let itemFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+    let numAttrs: [NSAttributedString.Key: Any] = [.font: itemFont, .foregroundColor: NSColor.white]
+    let pctText = "62%", usdText = "$8.41"
+    let gi = menuIcon("grok", .white)
+    let di = menuIcon("deepseek", .white)
+    let gh: CGFloat = 15, dh: CGFloat = 12
+    let gw: CGFloat = gh * (gi?.size.width ?? 1) / max(gi?.size.height ?? 1, 1)
+    let dw: CGFloat = dh * (di?.size.width ?? 1) / max(di?.size.height ?? 1, 1)
+    let itemW = gw + 5 + (pctText as NSString).size(withAttributes: numAttrs).width + 16 + dw + 5
+        + (usdText as NSString).size(withAttributes: numAttrs).width
+    let itemX = (W - itemW) / 2
+    let itemY = H - barH + 7
+
+    var cx = itemX
+    gi?.draw(in: NSRect(x: cx, y: itemY, width: gw, height: gh)); cx += gw + 5
+    (pctText as NSString).draw(at: NSPoint(x: cx, y: itemY + 0.5), withAttributes: numAttrs)
+    cx += (pctText as NSString).size(withAttributes: numAttrs).width + 16
+    di?.draw(in: NSRect(x: cx, y: itemY + 1.5, width: dw, height: dh)); cx += dw + 5
+    (usdText as NSString).draw(at: NSPoint(x: cx, y: itemY + 0.5), withAttributes: numAttrs)
+
+    // popover anchored under the item
+    let prevAppearance = NSApp.appearance
+    NSApp.appearance = NSAppearance(named: .aqua)
+    let panel = demoPanelImage(light: true)
+    NSApp.appearance = prevAppearance
+
+    let pw: CGFloat = 340, ph: CGFloat = 292
+    let anchor = itemX + itemW * 0.5
+    let px = (W - pw) / 2
+    let py = H - barH - ph - 10
+
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.62)
+    shadow.shadowBlurRadius = 42
+    shadow.shadowOffset = NSSize(width: 0, height: -18)
+
+    let panelRect = NSRect(x: px, y: py, width: pw, height: ph)
+    let rounded = NSBezierPath(roundedRect: panelRect, xRadius: 12, yRadius: 12)
+
+    // caret pointing at the status item
+    let caret = NSBezierPath()
+    let caretCX = min(max(anchor, px + 26), px + pw - 26)
+    caret.move(to: NSPoint(x: caretCX - 8, y: py + ph - 1))
+    caret.line(to: NSPoint(x: caretCX, y: py + ph + 8))
+    caret.line(to: NSPoint(x: caretCX + 8, y: py + ph - 1))
+    caret.close()
+
+    NSGraphicsContext.saveGraphicsState()
+    shadow.set()
+    NSColor(srgbRed: 0.975, green: 0.975, blue: 0.982, alpha: 1).setFill()
+    rounded.fill()
+    caret.fill()
+    NSGraphicsContext.restoreGraphicsState()
+
+    NSGraphicsContext.saveGraphicsState()
+    rounded.addClip()
+    panel.draw(in: panelRect)
+    NSGraphicsContext.restoreGraphicsState()
+
+    NSColor(calibratedWhite: 0.0, alpha: 0.10).setStroke()
+    rounded.lineWidth = 1
+    rounded.stroke()
+
+    canvas.unlockFocus()
+
+    if let tiff = canvas.tiffRepresentation,
+       let rep = NSBitmapImageRep(data: tiff),
+       let png = rep.representation(using: .png, properties: [:]) {
+        let out = CommandLine.arguments.last ?? "hero.png"
+        try? png.write(to: URL(fileURLWithPath: out))
+        print("wrote", out, rep.pixelsWide, "x", rep.pixelsHigh)
+        exit(0)
     }
     print("render failed")
     exit(1)
