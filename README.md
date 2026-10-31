@@ -21,11 +21,23 @@ Click the icon for a compact panel: Grok weekly usage with a reset countdown and
 
 ## Requirements
 
-- macOS 13 or newer
-- Xcode Command Line Tools (`xcode-select --install`)
+- macOS 13 or newer (Apple Silicon or Intel)
 - A DeepSeek API key and/or a Grok (xAI) OAuth token
+- Xcode Command Line Tools only if you build from source
 
 ## Install
+
+No Xcode. This downloads the universal app from the latest GitHub release, puts it in `~/Applications`, and starts it at login:
+
+```bash
+curl -fsSL https://github.com/oleqich/aiquota/releases/latest/download/install.sh | bash
+```
+
+Then click the menu bar icon → **Keys…** and paste your credentials. Leave a field empty to keep the current value.
+
+The release build is ad-hoc signed. The installer removes the quarantine flag macOS adds to GitHub downloads; without that, the app is reported as damaged. If it is still blocked: System Settings → Privacy & Security → Open Anyway.
+
+### From source
 
 ```bash
 git clone https://github.com/oleqich/aiquota.git
@@ -33,9 +45,7 @@ cd aiquota
 ./scripts/install.sh
 ```
 
-The script builds `AIQuota.app` into `~/Applications`, installs a LaunchAgent so it starts at login, and launches it.
-
-Then click the menu bar icon → **Keys…** and paste your credentials. Leave a field empty to keep the current value.
+Requires Xcode Command Line Tools (`xcode-select --install`). `./scripts/build.sh` writes a universal `dist/AIQuota.app` (macOS 13+).
 
 ## Credentials
 
