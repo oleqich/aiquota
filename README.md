@@ -10,11 +10,11 @@ Click the icon for a compact panel: Grok weekly usage with a reset countdown and
 
 **Light**
 
-![AIQuota, light](docs/panel-light.png)
+![AIQuota, light](docs/menu-light.png)
 
 **Dark**
 
-![AIQuota, dark](docs/panel-dark.png)
+![AIQuota, dark](docs/menu-dark.png)
 
 ## Features
 
