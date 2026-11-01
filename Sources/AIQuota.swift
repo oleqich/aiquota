@@ -924,10 +924,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: render
 
     func render() {
-        var color = NSColor.labelColor
-        if let g = grok, g.percent >= 80 { color = .systemRed }
-        else if let g = grok, g.percent >= 60 { color = .systemOrange }
-        if grok == nil || ds == nil { color = .secondaryLabelColor }
+        // Menu bar text and marks stay a single colour at all usage levels: no orange/red warning tints.
+        let darkBar = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let color: NSColor = darkBar ? .white : .labelColor
 
         let font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
         func txt(_ s: String) -> NSAttributedString {
