@@ -2,9 +2,7 @@
 
 A tiny native macOS menu bar app that shows your **Grok weekly credit** and **DeepSeek balance** at a glance.
 
-```
-[grok] 34%   [deepseek] $9.93
-```
+<img width="479" height="33" alt="image" src="https://github.com/user-attachments/assets/2fa1e331-33b8-425f-b320-b2d63cead382" />
 
 Click the icon for a compact panel: Grok weekly usage with a reset countdown and per-product split (Grok Build / Grok Chat), DeepSeek balance with today's spend, and an animated spend chart that toggles between the last 7 days and the current day's hours.
 
